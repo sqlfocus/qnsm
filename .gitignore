@@ -3,3 +3,6 @@
 *.o
 src/qnsm-inspect
 test/qnsm-test
+GPATH
+GRTAGS
+GTAGS
