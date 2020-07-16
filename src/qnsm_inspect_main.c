@@ -79,7 +79,7 @@ int qnsm_inspect_init(void)
     /*
      *conf parse
      */
-    ret = qnsm_conf_parse();
+    ret = qnsm_conf_parse();     /* 解析qnsm配置, ~/conf/*.xml */
     if(ret != 0) {
         QNSM_DEBUG(QNSM_DBG_M_CFG, QNSM_DBG_INFO, "ret = %d\n", ret);
         return ret;
@@ -128,31 +128,31 @@ MAIN(int argc, char **argv)
 
     rte_openlog_stream(stderr);
 
-    /*common config */
+    /* 解析配置，conf/XXX/qnsm_inspect.cfg */
     struct app_params *app_paras = NULL;
     app_paras = qnsm_service_get_cfg_para();
-    app_config_init(app_paras);
-    app_config_args(app_paras, argc, argv);
+    app_config_init(app_paras);              /* 默认值 */
+    app_config_args(app_paras, argc, argv);  /* 解析命令行 */
     app_config_preproc(app_paras);
     app_config_parse(app_paras, app_paras->parser_file);
-    app_config_check(app_paras);
+    app_config_check(app_paras);             /* 解析配置文件 */
 
     /*eal , link Init */
-    app_init(app_paras);
+    app_init(app_paras);                     /* 初始化各组件 */
 
     /*qnsm inspect init*/
-    ret = qnsm_inspect_init();
+    ret = qnsm_inspect_init();               /* 初始化qnsm配置，比如VIP_AGG/SESSM等 */
     if(ret != 0) {
         rte_exit(EXIT_FAILURE, "qnsm inspect init failed\n");
     }
 
     /*qnsm service init*/
-    ret = qnsm_service_lib_init(app_paras);
+    ret = qnsm_service_lib_init(app_paras);  /* 初始化suricata */
     if(ret != 0) {
         rte_exit(EXIT_FAILURE, "qnsm service lib init failed\n");
     }
 
-    /* Launch per-lcore init on every lcore */
+    /* Launch per-lcore init on every lcore *//* 各核心加载线程 */
     rte_eal_mp_remote_launch(app_lcore_main_loop, NULL, CALL_MASTER);
 
     return 0;

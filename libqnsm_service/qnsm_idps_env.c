@@ -1704,7 +1704,7 @@ static TmEcode ParseCommandLine(int argc, char** argv, SCInstance *suri)
 #ifdef HAVE_QNSM
             else if (strcmp((long_opts[option_index]).name , "dpdkintel") == 0) {
                 if (suri->run_mode == RUNMODE_UNKNOWN) {
-                    suri->run_mode = RUNMODE_DPDK;
+                    suri->run_mode = RUNMODE_DPDK;      /* 模式为 RUNMODE_DPDK */
                 } else {
                     SCLogError(SC_ERR_MULTIPLE_RUN_MODE, "more than one run mode "
                             "has been specified");

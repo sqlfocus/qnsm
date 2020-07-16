@@ -75,7 +75,7 @@
 
 
 RTE_DEFINE_PER_LCORE(void *, qnsm_data);
-struct app_params app;
+struct app_params app;             /* 配置参数结构 */
 
 #ifdef QNSM_LIBQNSM_IDPS
 #define QNSM_IDPS_CONF_DIR      "/usr/local/etc/"
@@ -194,11 +194,11 @@ int32_t qnsm_service_lib_init(void *app_params)
         rte_exit(EXIT_FAILURE, "qnsm crm service init failed\n");
     }
 
-    static const uint64_t us = 100 * 1000;
+    static const uint64_t us = 100 * 1000;   /* 设置处理句柄 */
     rte_eal_alarm_set(us, qnsm_crm_msg_req_handle, crm);
 
     /*msg pre init*/
-    ret = qnsm_msg_pre_init();
+    ret = qnsm_msg_pre_init();               /* 申请MSG池 */
     if(ret != 0) {
         printf("qnsm msg init failed\n");
         return ret;
@@ -218,7 +218,7 @@ int32_t qnsm_service_lib_init(void *app_params)
         return ret;
     }
 
-#ifdef QNSM_LIBQNSM_IDPS
+#ifdef QNSM_LIBQNSM_IDPS                     /* 初始化suricata */
     if (app_type_find(app_paras, EN_QNSM_DETECT)) {
         qnsm_idps_args_preproc(sizeof(idps_argument) / sizeof(char *) - 1,
                                (char **)idps_argument);
@@ -379,7 +379,7 @@ int32_t qnsm_servcie_app_launch(void *para,
     }
     QNSM_GET_DATA() = data;
 
-    ret = qnsm_crm_agent_init(&app,
+    ret = qnsm_crm_agent_init(&app,  /* 创建消息队列agent */
                               params,
                               &data->service_lib_handle[EN_QNSM_SERVICE_CRM]);
     if (ret != 0) {
@@ -454,18 +454,18 @@ int32_t qnsm_servcie_app_launch(void *para,
 
     /*app init*/
     if (init_fun) {
-        data->init_fun();
+        data->init_fun();               /* 服务初始化, 如 EN_QNSM_DETECT -> qnsm_detect_service_init() */
     }
 
     /*app run*/
     if (NULL == data->service_run) {
-        if (EN_QNSM_MASTER != type) {
+        if (EN_QNSM_MASTER != type) {   /* 非master线程，则改名 */
             char name[16];
             snprintf(name, sizeof(name), "%s#%u", params->type, rte_lcore_id());
             QnsmSetThreadName(name);
         }
         qnsm_service_run(data, params);
-    } else {
+    } else {                            /* EN_QNSM_DETECT -> qnsm_detect_run() */
         data->service_run(data->app_handle);
     }
 

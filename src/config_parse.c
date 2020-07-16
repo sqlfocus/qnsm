@@ -2542,14 +2542,14 @@ app_config_parse(struct app_params *app, const char *file_name)
     int i, j, sect_count;
 
     /* Implicit mempools */
-    create_implicit_mempools(app);
+    create_implicit_mempools(app);   /* 加入默认MEMPOOL0 */
 
     /* Port mask */
-    if (app->port_mask)
+    if (app->port_mask)              /* 加入默认 LINK[0, RTE_MAX_ETHPORTS] */
         create_implicit_links_from_port_mask(app, app->port_mask);
 
     /* Load application configuration file */
-    cfg = rte_cfgfile_load(file_name, 0);
+    cfg = rte_cfgfile_load(file_name, 0);  /* 加载配置文件 */
     APP_CHECK((cfg != NULL), "Parse error: Unable to load config "
               "file %s", file_name);
 
@@ -2563,16 +2563,16 @@ app_config_parse(struct app_params *app, const char *file_name)
 
     for (i = 0; i < sect_count; i++)
         section_names[i] = malloc(CFG_NAME_LEN);
-
+                                     /* 读取配置文件的section名，如[RXQ0.3] */
     rte_cfgfile_sections(cfg, section_names, sect_count);
-
+                                     /* 读取并解析section配置 */
     for (i = 0; i < sect_count; i++) {
         const struct config_section *sch_s;
         int len, cfg_name_len;
 
         cfg_name_len = strlen(section_names[i]);
 
-        /* Find section type */
+        /* Find section type */      /* 匹配 cfg_file_scheme[], 以提取配置信息 */
         for (j = 0; j < (int)RTE_DIM(cfg_file_scheme); j++) {
             sch_s = &cfg_file_scheme[j];
             len = strlen(sch_s->prefix);
@@ -2603,7 +2603,7 @@ app_config_parse(struct app_params *app, const char *file_name)
                                 sch_s->numbers) == 0,
                   "Parse error: invalid section name \"%s\"",
                   section_names[i]);
-
+                                     /* 解析配置 */
         sch_s->load(app, section_names[i], cfg);
     }
 
@@ -2630,7 +2630,7 @@ app_config_parse(struct app_params *app, const char *file_name)
     if (app->port_mask == 0)
         assign_link_pmd_id_from_pci_bdf(app);
 
-    /* Save configuration to output file */
+    /* Save configuration to output file *//* 存储配置到单独文件 */
     app_config_save(app, app->output_file);
 
     return 0;

@@ -1602,7 +1602,7 @@ int qnsm_conf_parse(void)
         return ret;
     }
 
-    qnsm_vip_conf_init();
+    qnsm_vip_conf_init();  /* 根据应用类型，加载配置文件, VIP_AGG */
     if (app_type_find(app_paras, EN_QNSM_VIP_AGG)) {
         /*vip conf parse */
         (void)snprintf(path, sizeof(path), "%s/qnsm_vip.xml", app_paras->xml_conf_dir);
@@ -1613,7 +1613,7 @@ int qnsm_conf_parse(void)
         }
     }
 
-    /*edge conf parse*/
+    /*edge conf parse*/    /* */
     (void)qnsm_edge_conf_init();
     if (app_type_find(app_paras, EN_QNSM_EDGE)) {
         (void)snprintf(path, sizeof(path), "%s/qnsm_edge.xml", app_paras->xml_conf_dir);

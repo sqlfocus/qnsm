@@ -42,7 +42,7 @@ typedef enum {
     EN_QNSM_VIP_AGG,
     EN_QNSM_EDGE,
     EN_QNSM_MASTER,
-    EN_QNSM_DETECT,
+    EN_QNSM_DETECT,     /* IDS by suricata */
     EN_QNSM_DUMP,
     EN_QNSM_TEST,
     EN_QNSM_DUMMY,

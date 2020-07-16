@@ -39,15 +39,15 @@
 #include <rte_lcore.h>
 
 #include "cpu_core_map.h"
-
+/* 建立每核心线程的角色映射表 */
 struct cpu_core_map {
     uint32_t n_max_sockets;
     uint32_t n_max_cores_per_socket;
-    uint32_t n_max_ht_per_core;
+    uint32_t n_max_ht_per_core;       /* 每核心最大超线程数 */
     uint32_t n_sockets;
     uint32_t n_cores_per_socket;
     uint32_t n_ht_per_core;
-    int map[0];
+    int map[0];                       /* 存放核心线程的角色 */
 };
 
 static inline uint32_t
@@ -100,10 +100,10 @@ cpu_core_map_init(uint32_t n_max_sockets,
     map->n_cores_per_socket = 0;
     map->n_ht_per_core = 0;
 
-    for (i = 0; i < map_size; i++)
+    for (i = 0; i < map_size; i++)  /* 分配内存后，初始化映射关系为-1 */
         map->map[i] = -1;
 
-    status = (eal_initialized) ?
+    status = (eal_initialized) ?    /* 构建映射表，映射结果为cpu核心号 */
              cpu_core_map_compute_eal(map) :
              cpu_core_map_compute_linux(map);
 
@@ -338,17 +338,17 @@ cpu_core_map_compute_linux(struct cpu_core_map *map)
     int n_lcores;
 
     n_lcores = cpu_core_map_get_n_lcores_linux();
-    if (n_lcores <= 0)
+    if (n_lcores <= 0)         /* 获取核心数 */
         return -1;
 
     /* Compute map */
     for (socket_id = 0; socket_id < map->n_max_sockets; socket_id++) {
         uint32_t n_detected, core_id_contig;
-        int lcore_id;
+        int lcore_id;          /* 逐socket遍历 */
 
         n_detected = 0;
         for (lcore_id = 0; lcore_id < n_lcores; lcore_id++) {
-            int lcore_socket_id =
+            int lcore_socket_id =      /* 计算本socket的核心数 */
                 cpu_core_map_get_socket_id_linux(lcore_id);
 
 #if !defined(RTE_ARCH_PPC_64)
@@ -363,7 +363,7 @@ cpu_core_map_compute_linux(struct cpu_core_map *map)
         core_id_contig = 0;
 
         for (core_id = 0; n_detected ; core_id++) {
-            ht_id = 0;
+            ht_id = 0;                 /* 将本socket的所有核心填入映射表 */
 
             for (lcore_id = 0; lcore_id < n_lcores; lcore_id++) {
                 int lcore_socket_id =
@@ -393,7 +393,7 @@ cpu_core_map_compute_linux(struct cpu_core_map *map)
                                                     core_id_contig,
                                                     ht_id);
 
-                    map->map[pos] = lcore_id;
+                    map->map[pos] = lcore_id;    /* 映射表的值为 cpu核心号 */
                     ht_id++;
                     n_detected--;
                 }

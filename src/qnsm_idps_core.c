@@ -157,7 +157,7 @@ static inline Packet *QnsmTMConstructPacket(struct rte_mbuf *m)
     PKT_SET_SRC(p, PKT_SRC_WIRE);
     p->datalink = LINKTYPE_ETHERNET;
     gettimeofday(&p->ts, NULL);
-    PacketSetData(p, (uint8_t *) pkt, caplen);
+    PacketSetData(p, (uint8_t *) pkt, caplen);   /* 报文copy */
 
     /* mbuf ptr*/
     p->mbufPtr = (void *) m;
@@ -226,7 +226,7 @@ TmEcode QnsmTMReceiveLoop(ThreadVars *tv, void *data, void *slot)
                                            void *));
 
             p = QnsmTMConstructPacket(mbuf[index]);
-            if (NULL == p) {
+            if (NULL == p) {                       /* 从dpdk mbuf构建suricta内部的Packet */
                 QNSM_DEBUG(QNSM_DBG_M_DPI_IPS, QNSM_DBG_ERR, "failed to construct pkt\n");
                 rte_pktmbuf_free(mbuf[index]);
                 continue;
@@ -238,7 +238,7 @@ TmEcode QnsmTMReceiveLoop(ThreadVars *tv, void *data, void *slot)
             SET_PKT_LEN(p, mbuf[index]->pkt_len);
 
             if (unlikely(TmThreadsSlotProcessPkt(tv, s->slot_next, p) != TM_ECODE_OK)) {
-                TmqhOutputPacketpool(tv, p);
+                TmqhOutputPacketpool(tv, p);       /* 调用报文处理函数链 */
                 rte_pktmbuf_free(mbuf[index]);
 
                 QNSM_DEBUG(QNSM_DBG_M_DPI_IPS, QNSM_DBG_ERR, "thread slot process pkt failed\n");
@@ -499,7 +499,7 @@ static int QnsmTmThreadTimeoutLoop(ThreadVars *tv, TmSlot *s)
             run s;
         queue;
 
- */
+*//* suricata线程主入口 */
 static void *QnsmTmThreadsSlotPktAcqLoop(void *td)
 {
     /* block usr2.  usr2 to be handled by the main thread only */
@@ -519,7 +519,7 @@ static void *QnsmTmThreadsSlotPktAcqLoop(void *td)
             TmThreadTestThreadUnPaused(tv);
             TmThreadsUnsetFlag(tv, THV_PAUSED);
         }
-
+        /* 注册的处理函数链，本调用为"QnsmReceive" ==> QnsmTMReceiveLoop() */
         r = s->PktAcqLoop(tv, SC_ATOMIC_GET(s->slot_data), s);
 
         if (r == TM_ECODE_FAILED) {
@@ -586,7 +586,7 @@ void *QnsmTmThreadsInit(const char* mode, const char *recv_mod_name, const char 
     TmEcode r = TM_ECODE_OK;
     const void *rcv_mod_initdata = qnsm_port_hdl();
 
-    /*create pkt hdl*/
+    /*create pkt hdl*/            /* 创建suricata检测线程 */
     snprintf(tname, sizeof(tname), "%s#%u", mode, rte_lcore_id());
     tv = QnsmTmThreadCreatePacketHandler(tname,
                                          "packetpool", "packetpool",
@@ -605,9 +605,9 @@ void *QnsmTmThreadsInit(const char* mode, const char *recv_mod_name, const char 
         SCLogError(SC_ERR_INVALID_VALUE, "TmModuleGetByName failed for %s", recv_mod_name);
         exit(EXIT_FAILURE);
     }
-#else
+#else                             /* 注册"QnsmReceive"模块 */
     tm_module = TmModuleReceiveQnsmRegister();
-#endif
+#endif                            /* 压入报文处理函数"QnsmReceive" */
     TmSlotSetFuncAppend(tv, tm_module, rcv_mod_initdata);
 
 #if 0
@@ -616,31 +616,31 @@ void *QnsmTmThreadsInit(const char* mode, const char *recv_mod_name, const char 
         SCLogError(SC_ERR_INVALID_VALUE, "TmModuleGetByName %s failed", decode_mod_name);
         exit(EXIT_FAILURE);
     }
-#else
+#else                             /* 注册"QnsmDecode"模块 */
     tm_module = TmModuleDecodeQnsmRegister();
-#endif
+#endif                            /* 压入报文处理函数"QnsmDecode" */
     TmSlotSetFuncAppend(tv, tm_module, NULL);
 
     tm_module = TmModuleGetByName("FlowWorker");
-    if (tm_module == NULL) {
+    if (tm_module == NULL) {      /* 压入报文处理函数"FlowWorker" */
         SCLogError(SC_ERR_RUNMODE, "TmModuleGetByName for FlowWorker failed");
         exit(EXIT_FAILURE);
     }
     TmSlotSetFuncAppend(tv, tm_module, NULL);
 
     tm_module = TmModuleGetByName("RespondReject");
-    if (tm_module == NULL) {
+    if (tm_module == NULL) {      /* 压入报文处理函数"RespondReject" */
         SCLogError(SC_ERR_RUNMODE, "TmModuleGetByName RespondReject failed");
         exit(EXIT_FAILURE);
     }
     TmSlotSetFuncAppend(tv, tm_module, NULL);
 
-    /* Set the thread name */
+    /* Set the thread name */     /* 修改线程名 */
     if (SCSetThreadName(tv->name) < 0) {
         SCLogWarning(SC_ERR_THREAD_INIT, "Unable to set thread name");
     }
 
-    PacketPoolInit();
+    PacketPoolInit();             /* 构建本线程报文缓存池 */
 
     /* check if we are setup properly */
     s = tv->tm_slots;
@@ -654,7 +654,7 @@ void *QnsmTmThreadsInit(const char* mode, const char *recv_mod_name, const char 
         return NULL;
     }
 
-    /*init thread modules*/
+    /*init thread modules*/       /* 报文处理函数链，初始化 */
     for (slot = s; slot != NULL; slot = slot->slot_next) {
         if (slot->SlotThreadInit != NULL) {
             void *slot_data = NULL;
@@ -705,6 +705,6 @@ void QnsmTMThreadsRun(void *var)
 {
     ThreadVars *tv = (ThreadVars *)var;
 
-    tv->tm_func(tv);
+    tv->tm_func(tv);     /* EN_QNSM_DETECT: QnsmTmThreadsSlotPktAcqLoop() */
     return;
 }

@@ -98,7 +98,7 @@ app_lcore_main_loop(void *arg)
     };
 
     for (p_id = 0; p_id < app->n_pipelines; p_id++) {
-        params = &app->pipeline_params[p_id];
+        params = &app->pipeline_params[p_id]; /* 找到对应的PIPELINE */
 
         lcore_id = cpu_core_map_get_lcore_id(app->core_map,
                                              params->socket_id,
@@ -109,7 +109,7 @@ app_lcore_main_loop(void *arg)
         }
     }
 
-    if (params && init_fun[app_type]) {
+    if (params && init_fun[app_type]) {       /* 启动对应服务 */
 
         printf("Logical core %u (%s) main loop.\n", lcore, params->name);
         qnsm_servcie_app_launch(params,

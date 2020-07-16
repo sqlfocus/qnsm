@@ -227,8 +227,8 @@ struct app_msgq_params {
 };
 
 enum app_pktq_in_type {
-    APP_PKTQ_IN_HWQ,
-    APP_PKTQ_IN_SWQ,
+    APP_PKTQ_IN_HWQ,   /* 报文入硬队列 */
+    APP_PKTQ_IN_SWQ,   /* 报文入软队列 */
     APP_PKTQ_IN_TM,
     APP_PKTQ_IN_TAP,
     APP_PKTQ_IN_KNI,
@@ -273,7 +273,7 @@ struct app_pipeline_params {
 
     uint32_t socket_id;
     uint32_t core_id;
-    uint32_t hyper_th_id;
+    uint32_t hyper_th_id;    /* "s0c7"->0; "s0c7h"->1 */
 
     struct app_pktq_in_params pktq_in[APP_MAX_PIPELINE_PKTQ_IN];
     struct app_pktq_out_params pktq_out[APP_MAX_PIPELINE_PKTQ_OUT];
@@ -473,11 +473,11 @@ struct app_eal_params {
 struct app_params {
     /* Config */
     char app_name[APP_APPNAME_SIZE];
-    const char *config_file;
+    const char *config_file;    /* ddos/idps配置文件 */
     const char *script_file;
-    const char *parser_file;
-    const char *output_file;
-    const char *xml_conf_dir;
+    const char *parser_file;    /* 预处理后的ddos/idps配置文件 */
+    const char *output_file;    /* ddos/idps配置解析后，转存至此 */
+    const char *xml_conf_dir;   /* qnsm配置文件目录 */
     const char *inst_id;
     const char *preproc;
     const char *preproc_args;
@@ -497,7 +497,7 @@ struct app_params {
     struct app_pktq_sink_params sink_params[APP_MAX_PKTQ_SINK];
     struct app_msgq_params msgq_params[APP_MAX_MSGQ];
     struct app_pipeline_params pipeline_params[APP_MAX_PIPELINES];
-    const char *idps_conf_file;
+    const char *idps_conf_file;   /* ids配置文件名 */
 
     uint32_t n_mempools;
     uint32_t n_links;
@@ -514,8 +514,8 @@ struct app_params {
 
     /* Init */
     char *eal_argv[1 + APP_EAL_ARGC];
-    struct cpu_core_map *core_map;
-    uint64_t core_mask[APP_CORE_MASK_SIZE];
+    struct cpu_core_map *core_map;          /* 核心映射关系 */
+    uint64_t core_mask[APP_CORE_MASK_SIZE]; /* 配置使用的core掩码，bit位掩码 */
     struct rte_mempool *mempool[APP_MAX_MEMPOOLS];
     struct app_link_data link_data[APP_MAX_LINKS];
     struct rte_ring *swq[APP_MAX_PKTQ_SWQ];
@@ -531,8 +531,8 @@ struct app_params {
     struct app_pipeline_data pipeline_data[APP_MAX_PIPELINES];
     struct app_thread_data thread_data[APP_MAX_THREADS];
 #else
-    EN_QNSM_APP app_type[APP_MAX_THREADS];
-    uint8_t app_deploy_num[EN_QNSM_APP_MAX];
+    EN_QNSM_APP app_type[APP_MAX_THREADS];    /* 各核心对应的应用层类型 */
+    uint8_t app_deploy_num[EN_QNSM_APP_MAX];  /* 应用层类型使用的核心数 */
 #endif
     cmdline_parse_ctx_t cmds[APP_MAX_CMDS + 1];
 

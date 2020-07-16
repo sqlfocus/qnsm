@@ -119,7 +119,7 @@ app_init_eal(struct app_params *app)
     int status;
 
     app->eal_argv[n_args++] = strdup(app->app_name);
-
+                                       /* 拼接DPDK系统参数 */
     app_core_build_core_mask_string(app, core_mask_str);
     snprintf(buffer, sizeof(buffer), "-c%s", core_mask_str);
     app->eal_argv[n_args++] = strdup(buffer);
@@ -304,7 +304,7 @@ app_init_eal(struct app_params *app)
     snprintf(buffer, sizeof(buffer), "--");
     app->eal_argv[n_args++] = strdup(buffer);
 
-    app->eal_argc = n_args;
+    app->eal_argc = n_args;    /* 添加用户传入参数 */
 
     APP_LOG(app, HIGH, "Initializing EAL ...");
     if (app->log_level >= APP_LOG_LEVEL_LOW) {
@@ -317,7 +317,7 @@ app_init_eal(struct app_params *app)
     }
 
     status = rte_eal_init(app->eal_argc, app->eal_argv);
-    if (status < 0)
+    if (status < 0)            /* DPDK环境初始化 */
         rte_panic("EAL init error\n");
 }
 
@@ -992,9 +992,9 @@ app_init_link(struct app_params *app)
         int status;
 
         sscanf(p_link->name, "LINK%" PRIu32, &link_id);
-        n_hwq_in = app_link_get_n_rxq(app, p_link);
-        n_hwq_out = app_link_get_n_txq(app, p_link);
-        app_init_link_set_config(p_link);
+        n_hwq_in = app_link_get_n_rxq(app, p_link);  /* 计算“[RXQi.x]”个数 */
+        n_hwq_out = app_link_get_n_txq(app, p_link); /* 计算“[TXQi.x]”个数 */
+        app_init_link_set_config(p_link);   /* 设置RSS，支持流对称 */
 
         APP_LOG(app, HIGH, "Initializing %s (%" PRIu32") "
                 "(%" PRIu32 " RXQ, %" PRIu32 " TXQ) ...",
@@ -1004,7 +1004,7 @@ app_init_link(struct app_params *app)
                 n_hwq_out);
 
         /* LINK */
-        status = rte_eth_dev_configure(
+        status = rte_eth_dev_configure(              /* 配置网卡 */
                      p_link->pmd_id,
                      n_hwq_in,
                      n_hwq_out,
@@ -1017,11 +1017,11 @@ app_init_link(struct app_params *app)
         rte_eth_macaddr_get(p_link->pmd_id,
                             (struct ether_addr *) &p_link->mac_addr);
 
-        if (p_link->promisc)
+        if (p_link->promisc)                         /* 设置混杂模式 */
             rte_eth_promiscuous_enable(p_link->pmd_id);
 
         /* RXQ */
-        for (j = 0; j < app->n_pktq_hwq_in; j++) {
+        for (j = 0; j < app->n_pktq_hwq_in; j++) {   /* 配置接收队列 */
             struct app_pktq_hwq_in_params *p_rxq =
                     &app->hwq_in_params[j];
             uint32_t rxq_link_id, rxq_queue_id;
@@ -1048,7 +1048,7 @@ app_init_link(struct app_params *app)
         }
 
         /* TXQ */
-        for (j = 0; j < app->n_pktq_hwq_out; j++) {
+        for (j = 0; j < app->n_pktq_hwq_out; j++) {  /* 配置发送队列 */
             struct app_pktq_hwq_out_params *p_txq =
                     &app->hwq_out_params[j];
             uint32_t txq_link_id, txq_queue_id;
@@ -1073,19 +1073,19 @@ app_init_link(struct app_params *app)
                           status);
         }
 
-        /* LINK START */
+        /* LINK START */              /* 启动网卡 */
         status = rte_eth_dev_start(p_link->pmd_id);
         if (status < 0)
             rte_panic("Cannot start %s (error %" PRId32 ")\n",
                       p_link->name, status);
 
-        /* LINK FILTERS */
+        /* LINK FILTERS */            /* 将arp/syn重定向到指定队列 */
         app_link_set_arp_filter(app, p_link);
         app_link_set_tcp_syn_filter(app, p_link);
         if (app_link_rss_enabled(p_link))
-            app_link_rss_setup(p_link);
+            app_link_rss_setup(p_link);    /* 更新reta值 */
 
-        /* LINK UP */
+        /* LINK UP */                 /* 启动网卡 */
         app_link_up_internal(app, p_link);
     }
 
@@ -1384,7 +1384,7 @@ static void app_init_apptype(struct app_params *app)
 
     memset(app->app_type, EN_QNSM_APP_MAX, sizeof(app->app_type));
     memset(app->app_deploy_num, 0, sizeof(app->app_deploy_num));
-    for (p_id = 0; p_id < app->n_pipelines; p_id++) {
+    for (p_id = 0; p_id < app->n_pipelines; p_id++) { /* 遍历"[PIPELINEx]" */
         params = &app->pipeline_params[p_id];
 
         lcore_id = cpu_core_map_get_lcore_id(app->core_map,
@@ -1398,7 +1398,7 @@ static void app_init_apptype(struct app_params *app)
                 break;
             }
         }
-        app->app_type[lcore_id] = app_type;
+        app->app_type[lcore_id] = app_type;          /* 记录 */
         app->app_deploy_num[app_type]++;
         params->app_type = app_type;
     }
@@ -1407,18 +1407,18 @@ static void app_init_apptype(struct app_params *app)
 
 int app_init(struct app_params *app)
 {
-    app_init_core_map(app);
-    app_init_core_mask(app);
+    app_init_core_map(app);   /* 构建cpu核心映射表 */
+    app_init_core_mask(app);  /* 构建已使用cpu的掩码 */
 
-    app_init_eal(app);
-    app_init_mempool(app);
-    app_init_link(app);
-    app_init_apptype(app);
-    app_init_swq(app);
+    app_init_eal(app);        /* 拼装dpdk初始化参数，调用rte_eal_init() */
+    app_init_mempool(app);    /* 初始化mempool */
+    app_init_link(app);       /* 初始化网卡 */
+    app_init_apptype(app);    /* 统计应用 EN_QNSM_APP 和核心的对应关系 */
+    app_init_swq(app);        /* 构建ring队列 */
 
     app_init_tap(app);
-    app_init_kni(app);
-    app_init_msgq(app);
+    app_init_kni(app);        /* 创建kni接口 */
+    app_init_msgq(app);       /* 初始化消息队列 */
 
     return 0;
 }
